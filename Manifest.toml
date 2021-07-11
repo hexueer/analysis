@@ -27,12 +27,6 @@ git-tree-sha1 = "57deb413ca9f4c8bc7d4c6e98ebe217ff728c737"
 uuid = "47718e42-2ac5-11e9-14af-e5595289c2ea"
 version = "0.1.0"
 
-[[BioSequenceTools]]
-deps = ["BioSequences"]
-path = "../BioSequenceTools.jl"
-uuid = "67893044-1481-44cf-8ab6-de350e09ee4e"
-version = "0.1.0"
-
 [[BioSequences]]
 deps = ["BioGenerics", "BioSymbols", "Combinatorics", "IndexableBitVectors", "Printf", "Random", "StableRNGs", "Twiddle"]
 git-tree-sha1 = "093ccb9211bdc71924abf8e74a0790af11da35a7"
@@ -44,6 +38,12 @@ deps = ["Automa"]
 git-tree-sha1 = "ec77888ac3e78f9d372c2b533bdb52668f9e2b09"
 uuid = "3c28c6f8-a34d-59c4-9654-267d177fcfa9"
 version = "4.0.4"
+
+[[BioinformaticsBISC195]]
+deps = ["BioSequences"]
+path = "/Users/ivyho/Documents/BISC195/BioinformaticsBISC195"
+uuid = "67893044-1481-44cf-8ab6-de350e09ee4e"
+version = "0.1.0"
 
 [[Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
