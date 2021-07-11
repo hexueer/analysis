@@ -3,7 +3,7 @@ That will calculate the mean and standard deviation of the lengths and gc conten
 
 ##### Get genomes
 ```julia
-using BioSequenceTools.jl
+using BioinformaticsBISC195
 
 genomes = parse_fasta("../data/selectedSARSgenomes.fasta")[2]
 ```
