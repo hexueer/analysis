@@ -1,1 +1,5 @@
 data/selectedSARSgenomes.fasta
+data/sequences.fasta
+data/genomeData.jld2
+data/kmerData.jld2
+data/kmerDf.jld2
