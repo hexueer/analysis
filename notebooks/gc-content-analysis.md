@@ -28,6 +28,11 @@ for header in headerVec
 end
 ```
 
+You might have noticed but our collection dates are in the forma of strings, but it would actually be more useful if they were datetime objects.
+
+```julia
+```
+
 Now, let's make a dataframe! Perhaps something that looks like this?
 |Accession|GC Content|Collection Date|
 |---|---|---|
@@ -41,12 +46,12 @@ using DataFrames
 gcContentDf = DataFrame(id = accessionVec, gc_content = gcContentVec, collection_date = collectDateVec)
 ```
 
-Haha, as you can see, I am no where near done! Instead you can look at my cats:
-![Cat #1](/assets/cat#1.jpg)
-![Cat #2](/assets/cat#2.jpg)
-
 Now that we have a table to organize our data, let's plot it for easy viewing!
 
 ```julia
 using StatsPlots
 ```
+Haha, as you can see, I am no where near done! Instead you can look at my cats:
+
+![Cat#1](assets/cat1.jpg)
+![Cat#2](assets/cat2.jpg)
