@@ -14,7 +14,6 @@ We have calculated and plotted sequence lengths and GC content, and calculated k
 2. We will organize each set of unique kmers by geographic region and order them by frequency in table.
 3. We will then take the most common ones (number depending on the outcome of the data) to plot on a bar graph by *k* length and frequency.
     
-*Note:* I also wanted to ask: what is a de Bruijn graph? I read articles but I still don't understand.
     
 ## 2. We will analyze the gc content of these genomes over time.
 
@@ -35,3 +34,7 @@ We have calculated and plotted sequence lengths and GC content, and calculated k
 |Gadfly|attempt at special visualizations|
 |Statistics.jl|general statistics functions|
 |SciKitLearn.jl|modeling data and significance tests|
+
+To finish off this plan, here are my cats!
+![Cat#1](notebooks/assets/cat1.jpg)
+![Cat#2](notebooks/assets/cat2.jpg)
