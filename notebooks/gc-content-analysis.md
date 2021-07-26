@@ -59,7 +59,7 @@ Our goal here is to look at the gc content of these sequences across time, but i
 ```julia
 julia> using BioinformaticsBISC195
 
-julia> filterDataVecsByEmptyAttrib(headerVec, sequenceVec, "|", 5)
+julia> headerVec, sequenceVec = filterByEmptyAttrib(headerVec, sequenceVec, "|", 5)
 
 julia> headerVec
 5701-element Vector{Any}:
@@ -251,7 +251,7 @@ julia> collectDateVec
  "2003-04-21"
 ```
 
-You might have noticed though that our collection dates are in the form of strings, but it would actually be more useful if they were datetime objects. From a quick glance at the data, it seems that the collection date strings come in 3 typical formats: yyyy-mm-dd, yyyy-mm, and yyyy. To keep things simple, we will turn every string into the yyyy-mm-dd format. The Dates package defaults to the earliest exact date when a field is missing, meaning that "2012" will become "2012-01-01". For the purposes of this project, we will allow this assumption.
+You might have noticed though that our collection dates are in the form of strings, but it would actually be more useful if they were date objects. From a quick glance at the data, it seems that the collection date strings come in 3 typical formats: yyyy-mm-dd, yyyy-mm, and yyyy. To keep things simple, we will turn every string into the yyyy-mm-dd format. The Dates package defaults to the earliest exact date when a field is missing, meaning that "2012" will become "2012-01-01". For the purposes of this project, we will allow this assumption.
 
 ```julia
 julia> using Dates

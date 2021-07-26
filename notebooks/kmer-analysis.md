@@ -162,18 +162,6 @@ julia> for num in 3:6
     end
 end
 
-kmer, k, count, id, location = [], [], [], [], []
-for index in 1:length(k3merVec)
-    for kmerKey in keys(k3merVec[index])
-        push!(kmer, kmerKey)
-        push!(k, 3)
-        push!(count, k3merVec[index][kmerKey])
-        headerInfo = getHeaderAttrib(headerVec[index], "|", [1,4])
-        push!(id, headerInfo[1])
-        push!(location, headerInfo[2])
-    end
-end
-
 julia> save("../data/kmerDf.jld2", Dict("kmer" => kmer, "k" => k, "count" => count, "id" => id, "location" => location)) # in case we want to skip all the previous steps
 
 # load!
@@ -184,7 +172,7 @@ julia> id = load("../data/kmerDf.jld2", "id")
 julia> location = load("../data/kmerDf.jld2", "location")
 ```
 
-Now we have our vectors! You might have noticed that I excluded the 7mers; that's because my laptop was struggling! So I gave up on that dream. Moving on, let's set up our dataframe and see what it looks like. So exciting!!
+Now we have our vectors! You might have noticed that I excluded the 7-mers; that's because my laptop was struggling! So I gave up on that dream. Moving on, let's set up our dataframe and see what it looks like. So exciting!!
 
 ```julia
 julia> using DataFrames
@@ -284,7 +272,7 @@ Set{Any} with 240 elements:
   ⋮ 
 ```
 
-Now that we have an idea of what the locations are, and how they are formatted (country name before first colon, if any), let's add a new column to generalize by country. Of course, since we are automating this process, we are reproducing how the NCBI has labeled the data, even though there may be errors or we might not agree (e.g. Hong Kong labeled under China). Because of this, our analysis might miss some of the important nuances to the data.
+Now that we have an idea of what the locations are, and how they are formatted (country name before first colon, if any), let's add a new column to generalize by country. Of course, since we are automating this process, we are reproducing how the NCBI has labeled the data, even though there may be errors or we might not agree. Because of this, our analysis might miss some of the important nuances to the data.
 
 ```julia
 julia> kmerDf.country = map(x -> split(x, ":")[1], kmerDf.location)
@@ -413,10 +401,13 @@ julia> kmerDf.subregion = map(x -> country_to_subregion[x], kmerDf.country)
 julia> kmerDf[!, :kmer] = convert.(String, kmerDf[:, :kmer])
 julia> kmerDf[!, :k] = convert.(Int, kmerDf[:, :k])
 julia> kmerDf[!, :count] = convert.(Int, kmerDf[:, :count])
+julia> kmerDf[!, :id] = convert.(String, kmerDf[:, :id])
+julia> kmerDf[!, :location] = convert.(String, kmerDf[:, :location])
+julia> kmerDf[!, :country] = convert.(String, kmerDf[:, :country])
 julia> kmerDf
 29619676×8 DataFrame
       Row │ kmer    k    count  id           location           country    region  subregion    
-          │ String     Int64  Int64    Any          Any                SubStrin…  String  String       
+          │ String     Int64  Int64    Any          Any                String  String  String       
 ──────────┼───────────────────────────────────────────────────────────────────────────────────────
         1 │ TGT     3    858    NC_045512.2  China              China      Asia    Eastern Asia
         2 │ GAC     3    340    NC_045512.2  China              China      Asia    Eastern Asia
@@ -458,28 +449,649 @@ julia> kmerDf
                                                                             29619640 rows omitted
 ```
 
-The biggest issue now is that we have multiple entries for the same kmer, since added each kmer for each sequence into the dataframe. That's okay, but now we want to be selective about what we will plot, since we can't plot everything! Let's pick the top 50 most frequent ones!
+The biggest issue now is that we have multiple entries for the same kmer, since we added each kmer for each sequence into the dataframe. Since we have so much data, it might be good to make separate DataFrames for each kmer length so that plotting is each one is easier later.
 
 ```julia
-kmerTotalCounts = Dict()
-for kStr in Set(kmerDf.kmer)
-    kmerTotalCounts[kStr] = sum(kmerDf[occursin(kStr).(kmerDf.kmer), :].count)
-end
-
-top50kmers = sort(collect(kmerTotalCounts), by = x -> x[2])[length(kmerTotalCounts)-49:end]
+julia> k3merDf = kmerDf[kmerDf[:, :k] .== 3, :]
+julia> k4merDf = kmerDf[kmerDf[:, :k] .== 4, :]
+julia> k5merDf = kmerDf[kmerDf[:, :k] .== 5, :]
+julia> k6merDf = kmerDf[kmerDf[:, :k] .== 6, :]
 ```
 
-Wow, we have a lot of data! Now that we have a lovely table, let's plot our data!
+Wow, we have a lot of data! Let's try plotting just the 3-mers first and see how it turns out!
 
 ```julia
 julia> using StatsPlots
-top50kmersDf = kmerDf[in(first.(top50kmers)).(kmerDf.kmer), :]
-top5kmers = first.(top50kmers)[1:5]
-top5kmersDf = kmerDf[in(top5kmers).(kmerDf.kmer), :]
+julia> using Measures
 
-groupedbar(kmerDf.kmer, kmerDf.count, bar_position = :stack, group = kmerDf.subregion, xlabel = "Most Common 3-mers", ylabel = "Frequency", title = "50 Most Common 3-mers by Frequency", xrotation = 90, color_palette = palette(:Paired_8), linecolor = nothing, legend = :topleft, foreground_color_legend = nothing, size = (2000, 1300), left_margin = 20mm, bottom_margin = 10mm)
-
-@df top5kmersDf groupedhist(:count, group = :subregion, bar_position = :dodge, color_palette = palette(:Paired_8), linecolor = nothing)
+julia> groupedbar(k3merDf.kmer,
+           k3merDf.count, 
+           bar_position = :stack, 
+           group = k3merDf.subregion,
+           xlabel = "125 Unique 3-mers", 
+           ylabel = "Frequency", 
+           title = "Unique 3-mers by Frequency", 
+           titlefontsize = 30,
+           legendfontsize = 15,
+           xrotation = 90, 
+           color_palette = palette(:Paired_8), 
+           linecolor = nothing, 
+           legend = :topleft, 
+           foreground_color_legend = nothing, 
+           size = (2100, 2000), 
+           left_margin = 20mm, bottom_margin = 10mm)
 ```
+![Wrong 3-mers Bar Plot](assets/3mersBarWrong.png)
+
+Our plot looks a little off though? Our plot only just passes a frequency of 6000 but the sum of the counts for 3-mer "TTT" gives us this:
+
+```julia
+julia> sum(k3merDf[k3merDf[:, :kmer] .== "TTT", :].count)
+5631314
+```
+
+This bug may be due to the fact that we are grouping sub-region instead of accession number, so function might just be plotting the first count for each sub-region, instead of adding up all of them. To get around this, let's reorganize our data.
+
+```julia
+julia> k3merSumDf = combine(groupby(k3merDf, [:kmer, :subregion]), [:count] .=> sum)
+971×3 DataFrame
+ Row │ kmer    subregion                        count_sum 
+     │ String  String                           Int64     
+─────┼────────────────────────────────────────────────────
+   1 │ TGT     Eastern Asia                        882873
+   2 │ GAC     Eastern Asia                        345807
+   3 │ GAA     Eastern Asia                        531842
+   4 │ TTC     Eastern Asia                        536085
+   5 │ ACA     Eastern Asia                        801236
+   6 │ TAG     Eastern Asia                        433839
+   7 │ GTA     Eastern Asia                        479550
+   8 │ GTG     Eastern Asia                        569047
+   9 │ CCT     Eastern Asia                        359748
+  10 │ GCT     Eastern Asia                        540446
+  11 │ GGC     Eastern Asia                        241598
+  12 │ AGG     Eastern Asia                        338883
+  13 │ CGG     Eastern Asia                         83761
+  14 │ AGC     Eastern Asia                        313799
+  ⋮  │   ⋮                    ⋮                     ⋮
+ 958 │ NAN     Eastern Asia                             3
+ 959 │ NAN     Western Asia                             7
+ 960 │ NGN     Western Asia                             2
+ 961 │ NCG     Eastern Asia                             4
+ 962 │ GNN     South-eastern Asia                       3
+ 963 │ AGN     South-eastern Asia                       2
+ 964 │ NNC     South-eastern Asia                       3
+ 965 │ NCA     South-eastern Asia                       3
+ 966 │ GGN     South-eastern Asia                       1
+ 967 │ CNN     South-eastern Asia                       1
+ 968 │ CCN     South-eastern Asia                       1
+ 969 │ NTT     South-eastern Asia                       1
+ 970 │ NAN     Southern Asia                           12
+ 971 │ NCN     Western Asia                             2
+                                          943 rows omitted
+
+julia> k3merSumDf[k3merSumDf[:, :kmer] .== "TTT", :]
+8×3 DataFrame
+ Row │ kmer    subregion                        count_sum 
+     │ String  String                           Int64     
+─────┼────────────────────────────────────────────────────
+   1 │ TTT     Eastern Asia                       1017305
+   2 │ TTT     Western Asia                       1062631
+   3 │ TTT     Southern Asia                      1704991
+   4 │ TTT     Northern Africa                     848367
+   5 │ TTT     Latin America and the Caribbean     477133
+   6 │ TTT     Sub-Saharan Africa                  417755
+   7 │ TTT     South-eastern Asia                   88062
+   8 │ TTT     Central Asia                         15070
+
+julia> sum(k3merSumDf[k3merSumDf[:, :kmer] .== "TTT", :].count_sum)
+5631314
+
+julia> groupedbar(k3merSumDf.kmer,
+           k3merSumDf.count_sum, 
+           bar_position = :stack, 
+           group = k3merSumDf.subregion,
+           xlabel = "125 Unique 3-mers", 
+           ylabel = "Frequency", 
+           title = "Unique 3-mers by Frequency", 
+           titlefontsize = 30,
+           legendfontsize = 15,
+           xrotation = 90, 
+           color_palette = palette(:Paired_8), 
+           linecolor = nothing, 
+           legend = :topleft, 
+           foreground_color_legend = nothing, 
+           size = (2100, 2000), 
+           left_margin = 20mm, bottom_margin = 10mm)
+```
+![3-mers Bar Plot](assets/3mersBar.png)
+
+Perfect! That's exactly what we want! Let's do it with the rest now!
+
+```julia
+julia> k4merSumDf = combine(groupby(k4merDf, [:kmer, :subregion]), [:count] .=> sum)
+4161×3 DataFrame
+  Row │ kmer    subregion     count_sum 
+      │ String  String        Int64     
+──────┼─────────────────────────────────
+    1 │ TTAG    Eastern Asia     133093
+    2 │ TAAT    Eastern Asia     222398
+    3 │ GGAA    Eastern Asia      99543
+    4 │ CTTG    Eastern Asia     170807
+    5 │ CCCC    Eastern Asia      17475
+    6 │ GGGC    Eastern Asia      33286
+    7 │ GTAA    Eastern Asia     127516
+    8 │ CAGG    Eastern Asia      88769
+    9 │ TGGG    Eastern Asia      59082
+   10 │ CGAT    Eastern Asia      33299
+   11 │ CACT    Eastern Asia     170066
+   12 │ ACAT    Eastern Asia     194090
+   13 │ TAAA    Eastern Asia     258421
+   14 │ CGTG    Eastern Asia      64972
+   15 │ CTAG    Eastern Asia      87811
+   16 │ CTTA    Eastern Asia     193728
+   17 │ GAAG    Eastern Asia     151388
+   18 │ TGCG    Eastern Asia      38855
+   19 │ ATTG    Eastern Asia     195326
+  ⋮   │   ⋮          ⋮            ⋮
+ 4143 │ TCNC    Western Asia          4
+ 4144 │ ANCG    Western Asia          1
+ 4145 │ NGCC    Western Asia          1
+ 4146 │ GNTN    Western Asia          1
+ 4147 │ GGNG    Western Asia          5
+ 4148 │ NTCG    Western Asia          1
+ 4149 │ GANC    Western Asia          2
+ 4150 │ NCCN    Western Asia          1
+ 4151 │ TGNG    Western Asia          2
+ 4152 │ GGGN    Western Asia          1
+ 4153 │ TNCN    Western Asia          2
+ 4154 │ NGNT    Western Asia          1
+ 4155 │ NGGN    Western Asia          1
+ 4156 │ GNGN    Western Asia          1
+ 4157 │ GNNT    Western Asia          1
+ 4158 │ NCNT    Western Asia          1
+ 4159 │ NTGN    Western Asia          2
+ 4160 │ NCNC    Western Asia          1
+ 4161 │ GGNA    Western Asia          1
+                       4123 rows omitted
+
+julia> Set(k4merSumDf.kmer)
+Set{String} with 616 elements:
+  "CACT"
+  "TAAA"
+  "CGNC"
+  ⋮ 
+```
+Hmm, there's a lot more unique elements than with the 3-mers. Let's just plot the top 125 counts!
+
+```julia
+julia> k4merTotals = combine(groupby(k4merDf, [:kmer]), [:count] .=> sum)
+616×2 DataFrame
+ Row │ kmer    count_sum 
+     │ String  Int64     
+─────┼───────────────────
+   1 │ TTAG       735173
+   2 │ TAAT      1228507
+   3 │ GGAA       551919
+   4 │ CTTG       946629
+   5 │ CCCC        95939
+   6 │ GGGC       184129
+   7 │ GTAA       705665
+   8 │ CAGG       491337
+   9 │ TGGG       326422
+  10 │ CGAT       185051
+  11 │ CACT       941602
+  12 │ ACAT      1075362
+  13 │ TAAA      1430803
+  14 │ CGTG       359165
+  15 │ CTAG       486951
+  16 │ CTTA      1071190
+  17 │ GAAG       838458
+  18 │ TGCG       214727
+  19 │ ATTG      1081977
+  ⋮  │   ⋮         ⋮
+ 598 │ TNNG            2
+ 599 │ GNNG            5
+ 600 │ NANC            2
+ 601 │ CNAN            4
+ 602 │ NCCN            2
+ 603 │ NANN            9
+ 604 │ NCAN            3
+ 605 │ GNAN            2
+ 606 │ NACN            2
+ 607 │ NGAN            1
+ 608 │ CGNN           10
+ 609 │ NNAN            8
+ 610 │ ANGN            1
+ 611 │ NGNA            3
+ 612 │ NAGN            1
+ 613 │ NNCG            1
+ 614 │ NGGN            1
+ 615 │ GNGN            1
+ 616 │ NTGN            2
+         578 rows omitted
+
+julia> sort!(k4merTotals, :count_sum, rev=true)
+616×2 DataFrame
+ Row │ kmer    count_sum 
+     │ String  Int64     
+─────┼───────────────────
+   1 │ TGTT      1874638
+   2 │ TTTT      1668355
+   3 │ TTGT      1658519
+   4 │ TTTA      1600994
+   5 │ ACAA      1539938
+   6 │ AATT      1505738
+   7 │ TTTG      1468632
+   8 │ TGCT      1449961
+   9 │ TTAA      1444013
+  10 │ TAAA      1430803
+  11 │ CTTT      1409957
+  12 │ AAAA      1408303
+  13 │ TTAT      1396393
+  14 │ AACA      1386966
+  15 │ TGGT      1385252
+  16 │ ACTT      1362294
+  17 │ TTAC      1339627
+  18 │ AAAT      1337517
+  19 │ TACA      1326899
+  ⋮  │   ⋮         ⋮
+ 598 │ NCNN            2
+ 599 │ CNNC            2
+ 600 │ NANG            2
+ 601 │ NGNT            2
+ 602 │ TNNG            2
+ 603 │ NANC            2
+ 604 │ NCCN            2
+ 605 │ GNAN            2
+ 606 │ NACN            2
+ 607 │ NTGN            2
+ 608 │ CNNG            1
+ 609 │ TNGN            1
+ 610 │ NNCN            1
+ 611 │ NGAN            1
+ 612 │ ANGN            1
+ 613 │ NAGN            1
+ 614 │ NNCG            1
+ 615 │ NGGN            1
+ 616 │ GNGN            1
+         578 rows omitted
+
+julia> top125k4mers = k4merTotals.kmer[1:125]
+125-element Vector{String}:
+ "TGTT"
+ "TTTT"
+ "TTGT"
+ "TTTA"
+ "ACAA"
+ "AATT"
+ "TTTG"
+ "TGCT"
+ "TTAA"
+ "TAAA"
+ "CTTT"
+ "AAAA"
+ "TTAT"
+ "AACA"
+ "TGGT"
+ "ACTT"
+ "TTAC"
+ "AAAT"
+ "TACA"
+ "ATTT"
+ "AATG"
+ ⋮
+ "ATCT"
+ "GTAC"
+ "AGAG"
+ "TCAT"
+ "GTAA"
+ "AGGT"
+ "CATG"
+ "CAAG"
+ "AAGG"
+ "CTGA"
+ "GGTA"
+ "GCAA"
+ "GAAT"
+ "CCTT"
+ "AGAC"
+ "TCAG"
+ "TGGC"
+ "GTGG"
+ "GTAG"
+ "CTGC"
+ "CAGT"
+
+julia> top125k4mersDf = filter(row -> row.kmer ∈ top125k4mers, k4merSumDf)
+1000×3 DataFrame
+  Row │ kmer    subregion      count_sum 
+      │ String  String         Int64     
+──────┼──────────────────────────────────
+    1 │ TGTT    Southern Asia     562025
+    2 │ TTTT    Southern Asia     510163
+    3 │ TTGT    Southern Asia     497664
+    4 │ TTTA    Southern Asia     488978
+    5 │ ACAA    Southern Asia     476778
+    6 │ AATT    Southern Asia     462334
+    7 │ TAAA    Southern Asia     442793
+    8 │ TTTG    Southern Asia     439244
+    9 │ AAAA    Southern Asia     437885
+   10 │ TTAA    Southern Asia     437470
+   11 │ TGCT    Southern Asia     432472
+   12 │ AACA    Southern Asia     429251
+   13 │ CTTT    Southern Asia     423913
+   14 │ TTAT    Southern Asia     419683
+   15 │ TGGT    Southern Asia     416443
+   16 │ AAAT    Southern Asia     412712
+   17 │ ACTT    Southern Asia     412511
+   18 │ TTAC    Southern Asia     409764
+   19 │ TACA    Southern Asia     403748
+  ⋮   │   ⋮           ⋮            ⋮
+  982 │ TCAT    Central Asia        1901
+  983 │ CTAC    Central Asia        1899
+  984 │ GTAA    Central Asia        1886
+  985 │ AGGT    Central Asia        1843
+  986 │ GAAT    Central Asia        1819
+  987 │ GGTA    Central Asia        1801
+  988 │ CAAG    Central Asia        1796
+  989 │ CATG    Central Asia        1794
+  990 │ AAGG    Central Asia        1785
+  991 │ AGAC    Central Asia        1760
+  992 │ CCTT    Central Asia        1754
+  993 │ GTAG    Central Asia        1745
+  994 │ CTGA    Central Asia        1745
+  995 │ TCAG    Central Asia        1729
+  996 │ CAGT    Central Asia        1726
+  997 │ GCAA    Central Asia        1713
+  998 │ GTGG    Central Asia        1705
+  999 │ CTGC    Central Asia        1675
+ 1000 │ TGGC    Central Asia        1639
+                         962 rows omitted
+
+julia> Set(top125k4mersDf.kmer) # just checking
+Set{String} with 125 elements:
+  "CACT"
+  "TAAA"
+  "GGTA"
+  "CAAT"
+  "TCTA"
+  ⋮ 
+
+julia> groupedbar(top125k4mersDf.kmer,
+           top125k4mersDf.count_sum, 
+           bar_position = :stack, 
+           group = top125k4mersDf.subregion,
+           xlabel = "Top 125 Unique 4-mers", 
+           ylabel = "Frequency", 
+           title = "Unique 4-mers by Frequency", 
+           titlefontsize = 30,
+           legendfontsize = 15,
+           xrotation = 90, 
+           color_palette = palette(:Paired_8), 
+           linecolor = nothing, 
+           legend = :topleft, 
+           foreground_color_legend = nothing, 
+           size = (2100, 2000), 
+           left_margin = 20mm, bottom_margin = 10mm)
+```
+![4-mers Bar Plot](assets/4mersBar.png)
+
+4-mers all done! 5-mers next!! I'll make it a bit shorter this time.
+
+```julia
+julia> k5merSumDf = combine(groupby(k5merDf, [:kmer, :subregion]), [:count] .=> sum)
+14961×3 DataFrame
+   Row │ kmer    subregion     count_sum 
+       │ String  String        Int64     
+───────┼─────────────────────────────────
+     1 │ GGACC   Eastern Asia      15607
+     2 │ TGTTT   Eastern Asia      91973
+     3 │ GCTGT   Eastern Asia      55565
+     4 │ TCGCT   Eastern Asia       8058
+     5 │ TCGTG   Eastern Asia      15531
+     6 │ GGGCA   Eastern Asia      11428
+     7 │ AGGAG   Eastern Asia      24790
+     8 │ GGAAA   Eastern Asia      25000
+     9 │ GTCCC   Eastern Asia       7492
+    10 │ CTGTG   Eastern Asia      36284
+    11 │ CGCGA   Eastern Asia       5193
+    12 │ AACCC   Eastern Asia      16597
+    13 │ ATATT   Eastern Asia      37550
+    14 │ CGACC   Eastern Asia       3094
+    15 │ TTGTC   Eastern Asia      49190
+    16 │ CTGAG   Eastern Asia      20420
+    17 │ GTTAC   Eastern Asia      56211
+    18 │ AAACA   Eastern Asia      73306
+    19 │ GCTAG   Eastern Asia      24918
+   ⋮   │   ⋮          ⋮            ⋮
+ 14943 │ CCNGT   Western Asia          1
+ 14944 │ AGGGN   Western Asia          1
+ 14945 │ NAACG   Western Asia          1
+ 14946 │ TTGGN   Western Asia          1
+ 14947 │ CACTN   Western Asia          1
+ 14948 │ CTNAT   Western Asia          1
+ 14949 │ TNATG   Western Asia          1
+ 14950 │ NCCAT   Western Asia          1
+ 14951 │ GGNAC   Western Asia          1
+ 14952 │ TGGNA   Western Asia          1
+ 14953 │ AGACN   Western Asia          1
+ 14954 │ CNTGC   Western Asia          1
+ 14955 │ TCNTG   Western Asia          1
+ 14956 │ CTCNT   Western Asia          1
+ 14957 │ ATGCN   Western Asia          1
+ 14958 │ CNCTA   Western Asia          1
+ 14959 │ AAGNA   Western Asia          1
+ 14960 │ AAAGN   Western Asia          1
+ 14961 │ NAATA   Western Asia          1
+                       14923 rows omitted
+
+julia> top125k5mers = sort(combine(groupby(k5merDf, [:kmer]), [:count] .=> sum), :count_sum, rev=true).kmer[1:125]
+125-element Vector{String}:
+ "TTGTT"
+ "TGTTA"
+ "TGTTG"
+ "TTTTG"
+ "TTCTT"
+ "AACAA"
+  ⋮ 
+
+julia> top125k5mersDf = filter(row -> row.kmer ∈ top125k5mers, k5merSumDf)
+1000×3 DataFrame
+  Row │ kmer    subregion     count_sum 
+      │ String  String        Int64     
+──────┼─────────────────────────────────
+    1 │ TGTTT   Eastern Asia      91973
+    2 │ AAACA   Eastern Asia      73306
+    3 │ TTAAA   Eastern Asia      93565
+    4 │ ATGAT   Eastern Asia      58622
+    5 │ AGAAA   Eastern Asia      69596
+    6 │ AAAAT   Eastern Asia      69416
+    7 │ TCTTA   Eastern Asia      59161
+    8 │ CAAAA   Eastern Asia      60090
+    9 │ TTTAA   Eastern Asia      90181
+   10 │ ACTTA   Eastern Asia      67055
+   11 │ TGAAA   Eastern Asia      60283
+   12 │ TTCAA   Eastern Asia      64209
+   13 │ TTTTA   Eastern Asia      91354
+   14 │ AAAGA   Eastern Asia      71213
+   15 │ CAAAT   Eastern Asia      60322
+   16 │ CTTAT   Eastern Asia      63456
+   17 │ TTTAC   Eastern Asia      71578
+   18 │ ATTAC   Eastern Asia      62248
+   19 │ TTGCT   Eastern Asia      75301
+   20 │ CTTTG   Eastern Asia      63982
+   21 │ AAAAA   Eastern Asia      60342
+   22 │ TGCTT   Eastern Asia      75594
+   23 │ TACTT   Eastern Asia      70724
+   24 │ TCTTT   Eastern Asia      69527
+  ⋮   │   ⋮          ⋮            ⋮
+  978 │ AATTT   Central Asia       1216
+  979 │ CTTGT   Central Asia       1000
+  980 │ AACTG   Central Asia        910
+  981 │ AATGG   Central Asia        960
+  982 │ TGTCT   Central Asia        837
+  983 │ TGCTA   Central Asia        976
+  984 │ ATGTT   Central Asia       1008
+  985 │ CAACT   Central Asia       1074
+  986 │ TTTGT   Central Asia       1329
+  987 │ TTATT   Central Asia       1085
+  988 │ CTAAA   Central Asia       1033
+  989 │ TTGAT   Central Asia        972
+  990 │ CTTCT   Central Asia        840
+  991 │ CTTTA   Central Asia       1158
+  992 │ TAATT   Central Asia        975
+  993 │ TAACA   Central Asia       1052
+  994 │ ACTGT   Central Asia        870
+  995 │ TGTTA   Central Asia       1518
+  996 │ TGGTT   Central Asia       1031
+  997 │ TAATG   Central Asia       1216
+  998 │ TATGA   Central Asia       1020
+  999 │ GTTGA   Central Asia        936
+ 1000 │ GTTTT   Central Asia       1192
+                        953 rows omitted
+
+julia> groupedbar(top125k5mersDf.kmer,
+           top125k5mersDf.count_sum, 
+           bar_position = :stack, 
+           group = top125k5mersDf.subregion,
+           xlabel = "Top 125 Unique 5-mers", 
+           ylabel = "Frequency", 
+           title = "Unique 5-mers by Frequency", 
+           titlefontsize = 30,
+           legendfontsize = 15,
+           xrotation = 90, 
+           color_palette = palette(:Paired_8), 
+           linecolor = nothing, 
+           legend = :topleft, 
+           foreground_color_legend = nothing, 
+           size = (2100, 2000), 
+           left_margin = 20mm, bottom_margin = 10mm)
+```
+![5-mers Bar Plot](assets/5mersBar.png)
+
+Just one moreeee!! 6-mers here we come!!!
+
+```julia
+julia> k6merSumDf = combine(groupby(k6merDf, [:kmer, :subregion]), [:count] .=> sum)
+45223×3 DataFrame
+   Row │ kmer    subregion        count_sum 
+       │ String  String           Int64     
+───────┼────────────────────────────────────
+     1 │ GGTTTG  Eastern Asia         10763
+     2 │ CGATAT  Eastern Asia          2971
+     3 │ GGAATT  Eastern Asia         12245
+     4 │ AGAGCC  Eastern Asia          4875
+     5 │ TGTACG  Eastern Asia          8143
+     6 │ GAGCAC  Eastern Asia          2164
+     7 │ TTTAAA  Eastern Asia         28729
+     8 │ CAGCAG  Eastern Asia          6102
+     9 │ GTTTTT  Eastern Asia         22880
+    10 │ TGACGA  Eastern Asia          1520
+    11 │ AGTTCT  Eastern Asia          5863
+    12 │ CTTAAG  Eastern Asia         10502
+    13 │ TTTGGC  Eastern Asia         14361
+    14 │ ATTTAA  Eastern Asia         16928
+    15 │ CAACAA  Eastern Asia         27463
+    16 │ TTAAGG  Eastern Asia         14577
+    17 │ TAGACT  Eastern Asia          8000
+    18 │ ACCCAT  Eastern Asia          5431
+    19 │ GGGTAA  Eastern Asia          2303
+   ⋮   │   ⋮            ⋮             ⋮
+ 45205 │ NCTACT  Western Asia             1
+ 45206 │ GCANTG  Western Asia             1
+ 45207 │ NTGTTC  Western Asia             1
+ 45208 │ CCGCAN  Western Asia             1
+ 45209 │ CGCANT  Western Asia             1
+ 45210 │ CANTGT  Western Asia             1
+ 45211 │ CGCCGG  Northern Africa          4
+ 45212 │ GGGGGG  Northern Africa          2
+ 45213 │ CCGGAC  Northern Africa          2
+ 45214 │ TCGCCG  Northern Africa          2
+ 45215 │ CGACCG  Northern Africa          2
+ 45216 │ GGGCGT  Northern Africa          4
+ 45217 │ ACGCCG  Northern Africa          4
+ 45218 │ NAATAA  Western Asia             1
+ 45219 │ AAGNAA  Western Asia             1
+ 45220 │ AAAAGN  Western Asia             1
+ 45221 │ GNAATA  Western Asia             1
+ 45222 │ AAAGNA  Western Asia             1
+ 45223 │ AGNAAT  Western Asia             1
+                          45185 rows omitted
+
+julia> top125k6mers = sort(combine(groupby(k6merDf, [:kmer]), [:count] .=> sum), :count_sum, rev=true).kmer[1:125]
+125-element Vector{String}:
+ "TTGTTA"
+ "TGTTAA"
+ "TGTTGT"
+ "GGTGTT"
+ "TTTTAA"
+  ⋮ 
+
+julia> top125k6mersDf = filter(row -> row.kmer ∈ top125k6mers, k6merSumDf)
+1000×3 DataFrame
+  Row │ kmer    subregion     count_sum 
+      │ String  String        Int64     
+──────┼─────────────────────────────────
+    1 │ TTTAAA  Eastern Asia      28729
+    2 │ GTTTTT  Eastern Asia      22880
+    3 │ CAACAA  Eastern Asia      27463
+    4 │ TAAATT  Eastern Asia      24884
+    5 │ TTGACA  Eastern Asia      24497
+    6 │ ACTTTA  Eastern Asia      25187
+    7 │ TTACTA  Eastern Asia      23799
+    8 │ AAAAGA  Eastern Asia      24503
+    9 │ GCTGCT  Eastern Asia      26748
+   10 │ TGCTTT  Eastern Asia      31784
+   11 │ ATTGTT  Eastern Asia      32351
+   12 │ TTATTA  Eastern Asia      26291
+   13 │ CTACTA  Eastern Asia      25047
+   14 │ ACAAAT  Eastern Asia      29581
+   15 │ AACAAA  Eastern Asia      27689
+   16 │ AATTGT  Eastern Asia      28921
+   17 │ ATTAAA  Eastern Asia      24499
+   18 │ CTTTTG  Eastern Asia      32183
+   19 │ TACAAA  Eastern Asia      27864
+  ⋮   │   ⋮          ⋮            ⋮
+  982 │ TGCTGT  Central Asia        406
+  983 │ ACAATT  Central Asia        450
+  984 │ TGACAT  Central Asia        345
+  985 │ TAAAAA  Central Asia        450
+  986 │ CAATTT  Central Asia        390
+  987 │ TTGCTG  Central Asia        390
+  988 │ TTTACT  Central Asia        392
+  989 │ AATGGT  Central Asia        390
+  990 │ GTGTTT  Central Asia        387
+  991 │ AATGTT  Central Asia        376
+  992 │ AACAAT  Central Asia        450
+  993 │ ACAACT  Central Asia        434
+  994 │ TTTGTA  Central Asia        405
+  995 │ TGTTGT  Central Asia        508
+  996 │ TTAATG  Central Asia        465
+  997 │ TCAACT  Central Asia        360
+  998 │ ATTTTA  Central Asia        376
+  999 │ AACAAC  Central Asia        389
+ 1000 │ TTGTTT  Central Asia        360
+                        962 rows omitted
+
+julia> groupedbar(top125k6mersDf.kmer,
+           top125k6mersDf.count_sum, 
+           bar_position = :stack, 
+           group = top125k6mersDf.subregion,
+           xlabel = "Top 125 Unique 6-mers", 
+           ylabel = "Frequency", 
+           title = "Unique 6-mers by Frequency", 
+           titlefontsize = 30,
+           legendfontsize = 15,
+           xrotation = 90, 
+           color_palette = palette(:Paired_8), 
+           linecolor = nothing, 
+           legend = :topleft, 
+           foreground_color_legend = nothing, 
+           size = (2100, 2000), 
+           left_margin = 20mm, bottom_margin = 10mm)
+```
+![6-mers Bar Plot](assets/6mersBar.png)
+
+Yessss!!!!! That's it!!
 
 ### Almost done!! On to the next analysis!
